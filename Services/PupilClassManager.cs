@@ -32,6 +32,17 @@ public static class PupilClassManager
             }
         }
 
+        // Validate: no duplicate pupil IDs in assignments
+        var duplicatePupilId = request.Assignments
+            .GroupBy(a => a.PupilId)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .FirstOrDefault();
+        if (duplicatePupilId != 0)
+        {
+            throw new Exception("Duplicate pupil IDs provided.");
+        }
+
         // Clone the state to avoid mutating the original
         var newState = new State
         {
