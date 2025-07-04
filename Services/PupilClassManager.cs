@@ -19,8 +19,8 @@ public static class PupilClassManager
             {
                 Id = p.Id,
                 Name = p.Name,
-                ClassName = null,
-                FollowUpNumber = null
+                ClassName = p.ClassName,
+                FollowUpNumber = p.FollowUpNumber
             }).ToList(),
             Classes = state.Classes.Select(c => new Models.Db.Class
             {
@@ -32,29 +32,31 @@ public static class PupilClassManager
             }).ToList()
         };
 
-        // Map assignments by class
-        var assignmentsByClass = request.Assignments
-            .GroupBy(a => a.ClassId)
-            .ToDictionary(g => g.Key, g => g.ToList());
+        // Map assignments by pupil
+        var assignmentsByPupil = request.Assignments.ToDictionary(a => a.PupilId, a => a.ClassId);
 
-        foreach (var classEntry in assignmentsByClass)
+        // Update pupils' class if present in assignments
+        foreach (var pupil in newState.Pupils)
         {
-            int classId = classEntry.Key;
-            var classAssignments = classEntry.Value;
-            var classObj = newState.Classes.FirstOrDefault(c => c.Id == classId);
-            if (classObj == null) continue; // Defensive, should not happen in this test
+            if (assignmentsByPupil.TryGetValue(pupil.Id, out int newClassId))
+            {
+                var classObj = newState.Classes.FirstOrDefault(c => c.Id == newClassId);
+                if (classObj != null)
+                {
+                    pupil.ClassName = classObj.ClassName;
+                }
+            }
+        }
 
-            // Get pupils assigned to this class
-            var pupilsInClass = classAssignments
-                .Select(a => newState.Pupils.FirstOrDefault(p => p.Id == a.PupilId))
-                .Where(p => p != null)
+        // For each class, update AmountOfPupils and FollowUpNumber for pupils in that class
+        foreach (var classObj in newState.Classes)
+        {
+            var pupilsInClass = newState.Pupils
+                .Where(p => p.ClassName == classObj.ClassName)
                 .OrderBy(p => p.Name)
                 .ToList();
-
-            // Assign ClassName and FollowUpNumber
             for (int i = 0; i < pupilsInClass.Count; i++)
             {
-                pupilsInClass[i].ClassName = classObj.ClassName;
                 pupilsInClass[i].FollowUpNumber = i + 1;
             }
             classObj.AmountOfPupils = pupilsInClass.Count;
