@@ -93,6 +93,15 @@ public static class PupilClassManager
             classObj.AmountOfPupils = pupilsInClass.Count;
         }
 
+        // After assignments, ensure every pupil is assigned to a class
+        foreach (var pupil in newState.Pupils)
+        {
+            if (string.IsNullOrEmpty(pupil.ClassName))
+            {
+                throw new Exception($"Pupil with id {pupil.Id} is not assigned to a class.");
+            }
+        }
+
         return newState;
     }
 
