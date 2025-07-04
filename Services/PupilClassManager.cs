@@ -12,6 +12,26 @@ public static class PupilClassManager
 {
     public static State UpdatePupilClassDivision(State state, Request request)
     {
+        // Validate: all class IDs in assignments must exist
+        var classIds = state.Classes.Select(c => c.Id).ToHashSet();
+        foreach (var assignment in request.Assignments)
+        {
+            if (!classIds.Contains(assignment.ClassId))
+            {
+                throw new Exception($"Class with id {assignment.ClassId} does not exist.");
+            }
+        }
+
+        // Validate: all pupil IDs in assignments must exist
+        var pupilIds = state.Pupils.Select(p => p.Id).ToHashSet();
+        foreach (var assignment in request.Assignments)
+        {
+            if (!pupilIds.Contains(assignment.PupilId))
+            {
+                throw new Exception($"Pupil with id {assignment.PupilId} does not exist.");
+            }
+        }
+
         // Clone the state to avoid mutating the original
         var newState = new State
         {
