@@ -10,6 +10,19 @@ namespace SchoolManager.Services;
  */
 public static class PupilClassManager
 {
+    /// <summary>
+    /// Updates the division of pupils into classes based on the provided assignments.
+    /// </summary>
+    /// <param name="state">The current state of pupils and classes.</param>
+    /// <param name="request">The request containing new pupil-class assignments.</param>
+    /// <returns>A new State reflecting the updated assignments.</returns>
+    /// <exception cref="Exception">
+    /// Thrown if:
+    /// - An assignment references a non-existing class or pupil.
+    /// - A pupil is assigned to multiple classes.
+    /// - Any pupil is not assigned to a class after processing.
+    /// - Any class exceeds its maximum allowed number of pupils.
+    /// </exception>
     public static State UpdatePupilClassDivision(State state, Request request)
     {
         // Validate: all class IDs in assignments must exist
@@ -32,7 +45,7 @@ public static class PupilClassManager
             }
         }
 
-        // Validate: no duplicate pupil IDs in assignments
+        // Validate: no duplicate pupil IDs in assignments (each pupil can only be assigned to one class)
         var duplicatePupilId = request.Assignments
             .GroupBy(a => a.PupilId)
             .Where(g => g.Count() > 1)
@@ -63,7 +76,7 @@ public static class PupilClassManager
             }).ToList()
         };
 
-        // Map assignments by pupil
+        // Map assignments by pupil for quick lookup
         var assignmentsByPupil = request.Assignments.ToDictionary(a => a.PupilId, a => a.ClassId);
 
         // Update pupils' class if present in assignments
@@ -71,6 +84,7 @@ public static class PupilClassManager
         {
             if (assignmentsByPupil.TryGetValue(pupil.Id, out int newClassId))
             {
+                // Assign the pupil to the new class
                 var classObj = newState.Classes.FirstOrDefault(c => c.Id == newClassId);
                 if (classObj != null)
                 {
@@ -79,7 +93,7 @@ public static class PupilClassManager
             }
         }
 
-        // For each class, update AmountOfPupils and FollowUpNumber for pupils in that class
+        // For each class, update AmountOfPupils and assign FollowUpNumber based on alphabetical order
         foreach (var classObj in newState.Classes)
         {
             var pupilsInClass = newState.Pupils
@@ -88,6 +102,7 @@ public static class PupilClassManager
                 .ToList();
             for (int i = 0; i < pupilsInClass.Count; i++)
             {
+                // FollowUpNumber is 1-based index in alphabetical order
                 pupilsInClass[i].FollowUpNumber = i + 1;
             }
             classObj.AmountOfPupils = pupilsInClass.Count;
@@ -114,12 +129,18 @@ public static class PupilClassManager
         return newState;
     }
 
+    /// <summary>
+    /// Calculates the difference between the old and new state, returning the pupils and classes that have changed.
+    /// </summary>
+    /// <param name="oldState">The previous state.</param>
+    /// <param name="newState">The updated state.</param>
+    /// <returns>A tuple containing a list of updated pupils and a list of updated classes.</returns>
     public static (List<UpdatedPupil>, List<UpdatedClass>) Diff(State oldState, State newState)
     {
         var updatedPupils = new List<UpdatedPupil>();
         var updatedClasses = new List<UpdatedClass>();
 
-        // Compare pupils
+        // Compare pupils: add to diff if ClassName or FollowUpNumber changed
         foreach (var newPupil in newState.Pupils)
         {
             var oldPupil = oldState.Pupils.FirstOrDefault(p => p.Id == newPupil.Id);
@@ -134,7 +155,7 @@ public static class PupilClassManager
             }
         }
 
-        // Compare classes
+        // Compare classes: add to diff if AmountOfPupils changed
         foreach (var newClass in newState.Classes)
         {
             var oldClass = oldState.Classes.FirstOrDefault(c => c.Id == newClass.Id);
