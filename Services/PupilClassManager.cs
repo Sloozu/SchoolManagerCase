@@ -102,6 +102,15 @@ public static class PupilClassManager
             }
         }
 
+        // After assignments, ensure no class exceeds MaxAmountOfPupils
+        foreach (var classObj in newState.Classes)
+        {
+            if (classObj.AmountOfPupils > classObj.MaxAmountOfPupils)
+            {
+                throw new Exception($"Class {classObj.ClassName} has too many pupils assigned.");
+            }
+        }
+
         return newState;
     }
 
